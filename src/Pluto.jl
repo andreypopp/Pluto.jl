@@ -8,6 +8,9 @@ julia> Pluto.run()
 Have a look at the FAQ:
 https://github.com/fonsp/Pluto.jl/wiki
 """
+
+Base.include(Main, "./PlutoShared.jl")
+
 module Pluto
 project_relative_path(xs...) = normpath(joinpath(dirname(dirname(pathof(Pluto))), xs...))
 

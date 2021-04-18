@@ -17,13 +17,14 @@ end
 
 "These expressions get evaluated inside every newly create module inside a `Workspace`."
 const workspace_preamble = [
-    :(using Main.PlutoRunner, Main.PlutoRunner.Markdown, Main.PlutoRunner.InteractiveUtils),
+    :(using Main.PlutoRunner, Main.PlutoRunner.Markdown, Main.PlutoRunner.InteractiveUtils, Main.PlutoRunner.UI),
     :(show, showable, showerror, repr, string, print, println), # https://github.com/JuliaLang/julia/issues/18181
 ]
 
 "These expressions get evaluated whenever a new `Workspace` process is created."
 const process_preamble = [
     :(ccall(:jl_exit_on_sigint, Cvoid, (Cint,), 0)),
+    :(include($(project_relative_path("src", "PlutoShared.jl")))),
     :(include($(project_relative_path("src", "runner", "Loader.jl")))),
     :(ENV["GKSwstype"] = "nul"), 
     :(ENV["JULIA_REVISE_WORKER_ONLY"] = "1"), 

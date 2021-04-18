@@ -22,7 +22,7 @@ import Logging
 
 export @bind
 
-MimedOutput = Tuple{Union{String,Vector{UInt8},Dict{Symbol,Any}},MIME}
+MimedOutput = Tuple{Union{String,Vector{UInt8},Main.PlutoShared.UI,Dict{Symbol,Any}},MIME}
 ObjectID = typeof(objectid("hello computer"))
 ObjectDimPair = Tuple{ObjectID,Int64}
 
@@ -478,8 +478,16 @@ The MIMEs that Pluto supports, in order of how much I like them.
 
 `text/plain` should always match - the difference between `show(::IO, ::MIME"text/plain", x)` and `show(::IO, x)` is an unsolved mystery.
 """
-const allmimes = [MIME"application/vnd.pluto.table+object"(); MIME"text/html"(); imagemimes; MIME"application/vnd.pluto.tree+object"(); MIME"text/latex"(); MIME"text/plain"()]
-
+const allmimes = [
+                  MIME"application/vnd.pluto.data+object"();
+                  MIME"application/vnd.pluto.ui+object"();
+                  MIME"application/vnd.pluto.table+object"();
+                  MIME"text/html"();
+                  imagemimes;
+                  MIME"application/vnd.pluto.tree+object"();
+                  MIME"text/latex"();
+                  MIME"text/plain"()
+                 ]
 
 """
 Format `val` using the richest possible output, return formatted string and used MIME type.
@@ -612,6 +620,10 @@ function show_richest(io::IO, @nospecialize(x))::Tuple{<:Any,MIME}
 
     if mime isa MIME"text/plain" && use_tree_viewer_for_struct(x)
         tree_data(x, io), MIME"application/vnd.pluto.tree+object"()
+    elseif mime isa MIME"application/vnd.pluto.ui+object"
+        UI.ui_data(showui(x), io), mime
+    elseif mime isa MIME"application/vnd.pluto.data+object"
+        UI.ui_data(x, io), mime
     elseif mime isa MIME"application/vnd.pluto.tree+object"
         tree_data(x, IOContext(io, :compact => true)), mime
     elseif mime isa MIME"application/vnd.pluto.table+object"
@@ -637,6 +649,77 @@ end
 # Base.showable(m::MIME, x::Plots.Plot)
 # because MIME is less specific than MIME"asdff", but Plots.PLot is more specific than Any.
 pluto_showable(m::MIME, @nospecialize(x))::Bool = Base.invokelatest(showable, m, x)
+pluto_showable(::MIME"application/vnd.pluto.data+object", ::Any) = false
+
+###
+# UI
+###
+
+module UI
+
+import ..PlutoRunner: format_output_default, pluto_showable
+export Table, VBox, HBox, Value
+
+struct AsFormatted
+  value::Any
+  valueonly::Bool
+end
+
+struct AsData
+  value::Any
+end
+
+pluto_showable(::MIME"application/vnd.pluto.data+object", ::AsData) = true
+
+Value(value) =
+  Main.PlutoShared.UI("Value"; value=value)
+VBox(children...; props...) =
+  Main.PlutoShared.UI("Box";
+                      children=children_to_ui(children),
+                      horizontal=false,
+                      props...)
+HBox(children...; props...) =
+  Main.PlutoShared.UI("Box";
+                      children=children_to_ui(children),
+                      horizontal=true,
+                      props...)
+Table(table; fill=false) =
+  Main.PlutoShared.UI("Table"; table=AsFormatted(table, true), fill=fill)
+
+children_to_ui(xs::Tuple) = [to_ui(x) for x in xs]
+
+to_ui(x::Main.PlutoShared.UI) = x
+to_ui(@nospecialize(x)) = Value(AsFormatted(x, false))
+
+ui_data(ui::Main.PlutoShared.UI, context::IOContext) =
+  Main.PlutoShared.UI(ui.type, ui_data(ui.props, context))
+ui_data(tofmt::AsFormatted, context::IOContext) = let
+  repr = format_output_default(tofmt.value, context)
+  if tofmt.valueonly
+    repr[1]
+  else
+    repr
+  end
+end
+ui_data(@nospecialize(dict::AbstractDict{<:Any,<:Any}), context::IOContext) =
+  Dict{Symbol,Any}(Symbol(kw.first) => ui_data(kw.second, context) for kw in pairs(dict))
+ui_data(@nospecialize(items::AbstractArray{<:Any,1}), context::IOContext) =
+  [ui_data(item, context) for item in items]
+ui_data(@nospecialize(items::Tuple), context::IOContext) =
+  (ui_data(item, context) for item in items)
+ui_data(@nospecialize(items::NamedTuple), context::IOContext) =
+  Dict{Symbol,Any}(kw.first => ui_data(kw.second, context) for kw in pairs(items))
+ui_data(@nospecialize(x::AsData), io::IOContext) = ui_data(x.value, io)
+ui_data(@nospecialize(x), ::IOContext) = x
+
+end
+
+showui(ui::Main.PlutoShared.UI) = ui
+
+pluto_showable(::MIME"application/vnd.pluto.ui+object", @nospecialize(x)) =
+  applicable(showui, x)
+
+
 
 ###
 # TREE VIEWER

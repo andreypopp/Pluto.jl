@@ -2,7 +2,7 @@ import UUIDs: UUID, uuid1
 import .ExpressionExplorer: SymbolsState
 
 Base.@kwdef struct CellOutput
-    body::Union{Nothing,String,Vector{UInt8},Dict}=nothing
+    body::Union{Nothing,String,Vector{UInt8},Dict,Main.PlutoShared.UI}=nothing
     mime::MIME=MIME("text/plain")
     rootassignee::Union{Symbol,Nothing}=nothing
 

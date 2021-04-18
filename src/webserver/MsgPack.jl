@@ -26,6 +26,10 @@ MsgPack.msgpack_type(::Type{Configuration.CompilerOptions}) = MsgPack.StructType
 MsgPack.msgpack_type(::Type{Configuration.ServerOptions}) = MsgPack.StructType()
 MsgPack.msgpack_type(::Type{Configuration.SecurityOptions}) = MsgPack.StructType()
 
+MsgPack.msgpack_type(::Type{Main.PlutoShared.UI}) = MsgPack.ExtensionType()
+MsgPack.to_msgpack(::MsgPack.ExtensionType, ui::Main.PlutoShared.UI) =
+  MsgPack.Extension(125, MsgPack.pack(Dict(:type => ui.type, :props => ui.props)))
+
 # We want typed integer arrays to arrive as JS typed integer arrays:
 const JSTypedIntSupport = [Int8, UInt8, Int16, UInt16, Int32, UInt32, Float32, Float64]
 JSTypedInt = Union{Int8,UInt8,Int16,UInt16,Int32,UInt32,Float32,Float64}
