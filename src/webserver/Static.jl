@@ -42,7 +42,7 @@ end
 function notebook_response(notebook; home_url="./", as_redirect=true)
     if as_redirect
         response = HTTP.Response(302, "")
-        push!(response.headers, "Location" => home_url * "edit?id=" * string(notebook.notebook_id))
+        push!(response.headers, "Location" => home_url * "edit?id=" * string(notebook.notebook_id) * "&path=" * notebook.path)
         return response
     else
         HTTP.Response(200, string(notebook.notebook_id))
