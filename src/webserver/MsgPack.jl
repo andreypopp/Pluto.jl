@@ -19,6 +19,11 @@ MsgPack.to_msgpack(::MsgPack.ExtensionType, d::Dates.DateTime) = let
     MsgPack.Extension(0x0d, reinterpret(UInt8, [millisecs_since_1970_because_thats_how_computers_work]))
 end
 
+MsgPack.msgpack_type(::Type{Dates.Date}) =
+  MsgPack.ExtensionType()
+MsgPack.to_msgpack(t::MsgPack.ExtensionType, d::Dates.Date) =
+  MsgPack.to_msgpack(t, Dates.DateTime(d))
+
 # Our Configuration types:
 MsgPack.msgpack_type(::Type{Configuration.Options}) = MsgPack.StructType()
 MsgPack.msgpack_type(::Type{Configuration.EvaluationOptions}) = MsgPack.StructType()
