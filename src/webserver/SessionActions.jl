@@ -1,6 +1,6 @@
 module SessionActions
 
-import ..Pluto: ServerSession, Notebook, emptynotebook, tamepath, new_notebooks_directory, without_dotjl, numbered_until_new, readwrite, move_notebook!, update_save_run!, putnotebookupdates!, putplutoupdates!, load_notebook, clientupdate_notebook_list, WorkspaceManager, @asynclog
+import ..Pluto: ServerSession, ClientSession, Notebook, emptynotebook, tamepath, new_notebooks_directory, without_dotjl, numbered_until_new, readwrite, move_notebook!, update_save_run!, putnotebookupdates!, putplutoupdates!, load_notebook, clientupdate_notebook_list, WorkspaceManager, @asynclog
 
 struct NotebookIsRunningException <: Exception
     notebook::Notebook
@@ -80,6 +80,45 @@ function shutdown(session::ServerSession, notebook::Notebook; keep_in_session=fa
         end
     end
     WorkspaceManager.unmake_workspace((session, notebook); async=async)
+end
+
+function attach_client(session::ServerSession, clientid::Symbol, stream::IO)
+  client = get(session.connected_clients, clientid, nothing)
+  if client === nothing
+    client = ClientSession(clientid, stream)
+    session.connected_clients[clientid] = client
+    @info "Client connected $(clientid) (total $(length(session.connected_clients)))"
+  else
+    client.stream = stream # it might change when the same client reconnects
+  end
+  client
+end
+
+function detach_client(session::ServerSession, client::ClientSession)
+  @info "Client disconnected $(client.id)"
+  delete!(session.connected_clients, client.id)
+  if client.connected_notebook !== nothing
+    notebook = client.connected_notebook
+
+    # cleanup client-owned cells
+    to_remove = []
+    for (cellid, cell) in notebook.cells_dict
+      if cell.owner == client.id
+        push!(to_remove, cellid)
+      end
+    end
+    if !isempty(to_remove)
+      for cellid in to_remove
+        delete!(notebook.cells_dict, cellid)
+      end
+      notebook.cell_order = filter(
+        cellid -> haskey(notebook.cells_dict, cellid),
+        notebook.cell_order
+      )
+      # TODO(andreypopp): do we want to do that here?
+      # update_save_run!(session, notebook, notebook.cells; run_async=true, save=false)
+    end
+  end
 end
 
 end

@@ -102,6 +102,7 @@ function notebook_to_js(notebook::Notebook)
                 "cell_id" => cell.cell_id,
                 "code" => cell.code,
                 "code_folded" => cell.code_folded,
+                "owner" => cell.owner,
             )
         for (id, cell) in notebook.cells_dict),
         "cell_dependencies" => Dict{UUID,Dict{String,Any}}(
@@ -362,8 +363,11 @@ end
 responses[:run_multiple_cells] = function response_run_multiple_cells(🙋::ClientRequest)
     require_notebook(🙋)
     uuids = UUID.(🙋.body["cells"])
-    cells = map(uuids) do uuid
-        🙋.notebook.cells_dict[uuid]
+    cells::Array{Cell,1} = []
+    for uuid in uuids
+      cell = get(🙋.notebook.cells_dict, uuid, nothing)
+      if cell === nothing; continue end
+      push!(cells, cell)
     end
 
     if will_run_code(🙋.notebook)

@@ -146,6 +146,13 @@ function run(session::ServerSession)
                 s.require_secret_for_access || s.require_secret_for_open_links
             end
             if !secret_required || is_authenticated(session, http.message)
+                client::Union{Nothing,ClientSession} = nothing
+                function detach_client()
+                  if client !== nothing
+                    SessionActions.detach_client(session, client)
+                    client = nothing
+                  end
+                end
                 try
 
                     HTTP.WebSockets.upgrade(http) do clientstream
@@ -160,13 +167,15 @@ function run(session::ServerSession)
                             try
                                 message = collect(WebsocketFix.readmessage(clientstream))
                                 parentbody = unpack(message)
+                                client_id = Symbol(parentbody["client_id"])
+                                client = SessionActions.attach_client(session, client_id, clientstream)
                                 
                                 let
                                     lag = session.options.server.simulated_lag
                                     (lag > 0) && sleep(lag) # sleep(0) would yield to the process manager which we dont want
                                 end
 
-                                process_ws_message(session, parentbody, clientstream)
+                                process_ws_message(session, parentbody, client)
                             catch ex
                                 if ex isa InterruptException
                                     shutdown_server[]()
@@ -178,11 +187,13 @@ function run(session::ServerSession)
                                 end
                             end
                         end
+                        detach_client()
                         catch ex
                             if ex isa InterruptException
                                 shutdown_server[]()
                             elseif ex isa HTTP.WebSockets.WebSocketError || ex isa EOFError || (ex isa Base.IOError && occursin("connection reset", ex.msg))
                                 # that's fine!
+                                detach_client()
                             else
                                 bt = stacktrace(catch_backtrace())
                                 @warn "Reading WebSocket client stream failed for unknown reason:" exception = (ex, bt)
@@ -194,8 +205,10 @@ function run(session::ServerSession)
                         shutdown_server[]()
                     elseif ex isa Base.IOError
                         # that's fine!
+                        detach_client()
                     elseif ex isa ArgumentError && occursin("stream is closed", ex.msg)
                         # that's fine!
+                        detach_client()
                     else
                         bt = stacktrace(catch_backtrace())
                         @warn "HTTP upgrade failed for unknown reason" exception = (ex, bt)
@@ -321,11 +334,7 @@ function pretty_address(session::ServerSession, hostIP, port)
 end
 
 "All messages sent over the WebSocket get decoded+deserialized and end up here."
-function process_ws_message(session::ServerSession, parentbody::Dict, clientstream::IO)
-    client_id = Symbol(parentbody["client_id"])
-    client = get!(session.connected_clients, client_id, ClientSession(client_id, clientstream))
-    client.stream = clientstream # it might change when the same client reconnects
-    
+function process_ws_message(session::ServerSession, parentbody::Dict, client::ClientSession)
     messagetype = Symbol(parentbody["type"])
     request_id = Symbol(parentbody["request_id"])
 

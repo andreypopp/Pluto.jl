@@ -105,6 +105,9 @@ function save_notebook(io, notebook::Notebook)
     cells_ordered = collect(topological_order(notebook))
     
     for c in cells_ordered
+        if c.owner !== nothing
+            continue
+        end
         println(io, _cell_id_delimiter, string(c.cell_id))
         print(io, c.code)
         print(io, _cell_suffix)
@@ -112,6 +115,9 @@ function save_notebook(io, notebook::Notebook)
 
     println(io, _cell_id_delimiter, "Cell order:")
     for c in notebook.cells
+        if c.owner !== nothing
+            continue
+        end
         delim = c.code_folded ? _order_delimiter_folded : _order_delimiter
         println(io, delim, string(c.cell_id))
     end
