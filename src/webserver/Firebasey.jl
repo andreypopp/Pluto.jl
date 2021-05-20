@@ -214,8 +214,8 @@ const use_triple_equals_for_arrays = Ref(false)
 # ╔═╡ 59e94cb2-c2f9-4f6c-9562-45e8c15931af
 function diff(old::T, new::T) where T <: AbstractArray
 	if use_triple_equals_for_arrays[] ? 
-		((old === new) || (old == new)) : 
-		(old == new)
+		((old === new) || isequal(old, new)) :
+		isequal(old, new)
 		NoChanges
 	else
 		JSONPatch[ReplacePatch([], new)]
@@ -228,7 +228,7 @@ function diff(old::T, new::T) where T
 		JSONPatch[ReplacePatch([], new)]
 	elseif old !== missing && new === missing
 		JSONPatch[RemovePatch([])]
-	elseif old === new || old == new
+	elseif old === new || isequal(old, new)
 		NoChanges
 	else
 		JSONPatch[ReplacePatch([], new)]
