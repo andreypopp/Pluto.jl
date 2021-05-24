@@ -609,6 +609,12 @@ Like two-argument `Base.show`, except:
 3. if the first returned element is `nothing`, then we wrote our data to `io`. If it is something else (a Dict), then that object will be the cell's output, instead of the buffered io stream. This allows us to output rich objects to the frontend that are not necessarily strings or byte streams
 """
 function show_richest(io::IO, @nospecialize(x))::Tuple{<:Any,MIME}
+    local output = pluto_show(x)
+    if output !== nothing
+      local data, mime = output
+      return UI.ui_data(data, io), mime
+    end
+
     # ugly code to fix an ugly performance problem
     local mime = nothing
     for m in allmimes
@@ -642,6 +648,8 @@ function show_richest(io::IO, @nospecialize(x))::Tuple{<:Any,MIME}
         nothing, mime
     end
 end
+
+pluto_show(@nospecialize(x))::Union{Nothing,MimedOutput} = nothing
 
 # we write our own function instead of extending Base.showable with our new MIME because:
 # we need the method Base.showable(::MIME"asdfasdf", ::Any) = Tables.rowaccess(x)
