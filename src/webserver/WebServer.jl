@@ -2,6 +2,7 @@ import MsgPack
 import UUIDs: UUID
 import HTTP
 import Sockets
+import Revise
 
 import Base: endswith
 function endswith(vec::Vector{T}, suffix::Vector{T}) where T
@@ -161,6 +162,7 @@ function run(session::ServerSession)
                         end
                         try
                         while !eof(clientstream)
+                            Revise.revise()
                             # This stream contains data received over the WebSocket.
                             # It is formatted and MsgPack-encoded by send(...) in PlutoConnection.js
                             local parentbody
@@ -175,7 +177,7 @@ function run(session::ServerSession)
                                     (lag > 0) && sleep(lag) # sleep(0) would yield to the process manager which we dont want
                                 end
 
-                                process_ws_message(session, parentbody, client)
+                                Base.invokelatest(process_ws_message, session, parentbody, client)
                             catch ex
                                 if ex isa InterruptException
                                     shutdown_server[]()
