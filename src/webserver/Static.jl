@@ -122,11 +122,11 @@ function http_router_for(session::ServerSession)
     # Access to all 'risky' endpoints is still restricted to requests that have the secret cookie, but visiting `/` is allowed, and it will set the cookie. From then on the security situation is identical to 
     #    secret_for_access == true
     HTTP.@register(router, "GET", "/", with_authentication(
-        create_serve_onefile(project_relative_path("../notebook-pluto/dist", "index.html"));
+        create_serve_onefile(project_relative_path("../notebook-ohdsi/dist", "index.html"));
         required=security.require_secret_for_access
         ))
     HTTP.@register(router, "GET", "/edit", with_authentication(
-        create_serve_onefile(project_relative_path("../notebook-pluto/dist", "index.html"));
+        create_serve_onefile(project_relative_path("../notebook-ohdsi/dist", "index.html"));
         required=security.require_secret_for_access || 
         security.require_secret_for_open_links,
     ))
@@ -241,7 +241,7 @@ function http_router_for(session::ServerSession)
     function serve_asset(request::HTTP.Request)
         uri = HTTP.URI(request.target)
         
-        filepath = project_relative_path("../notebook-pluto/dist", relpath(HTTP.unescapeuri(uri.path), "/"))
+        filepath = project_relative_path("../notebook-ohdsi/dist", relpath(HTTP.unescapeuri(uri.path), "/"))
         asset_response(filepath)
     end
     HTTP.@register(router, "GET", "/*", serve_asset)
